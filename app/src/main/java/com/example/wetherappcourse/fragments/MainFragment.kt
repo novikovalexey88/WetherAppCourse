@@ -50,18 +50,19 @@ class MainFragment : Fragment() {
         requestWeatherData("Moscow")
     }
 
-    private fun init() = with(binding){
+    private fun init() = with(binding) {
         val adapter = VpAdapter(activity as FragmentActivity, fList)
         vp.adapter = adapter
-        TabLayoutMediator(tabLayout, vp){
-                tab, pos -> tab.text = tList[pos]
+        TabLayoutMediator(tabLayout, vp) { tab, pos ->
+            tab.text = tList[pos]
         }.attach()
 
     }
 
-    private fun permissionListener(){
+    private fun permissionListener() {
         pLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestPermission()){
+            ActivityResultContracts.RequestPermission()
+        ) {
             Toast.makeText(activity, "Permission is $it", Toast.LENGTH_LONG).show()
         }
     }
@@ -74,7 +75,7 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun requestWeatherData(city: String){
+    private fun requestWeatherData(city: String) {
         val url = "https://api.weatherapi.com/v1/forecast.json?key=" +
                 API_KEY +
                 "&q=" +
@@ -86,11 +87,11 @@ class MainFragment : Fragment() {
         val request = StringRequest(
             Request.Method.GET,
             url,
-            {
-                    result -> parseWeatherData(result)
+            { result ->
+                parseWeatherData(result)
             },
-            {
-                    error -> Log.d("MyLog", "Error: $error")
+            { error ->
+                Log.d("MyLog", "Error: $error")
             }
         )
         queue.add(request)
@@ -99,23 +100,52 @@ class MainFragment : Fragment() {
 
     private fun parseWeatherData(result: String) {
         val mainObject = JSONObject(result)
+        val list = parseDays(mainObject)
+        parseCurrentData(mainObject, list[0])
+    }
+
+    private fun parseDays(mainObject: JSONObject): List<WeatherModel> {
+        val list = ArrayList<WeatherModel>()
+        val daysArray = mainObject.getJSONObject("forecast")
+            .getJSONArray("forecastday")
+        val name = mainObject.getJSONObject("location").getString("name")
+        for (i in 0 until daysArray.length()) {
+            val day = daysArray[i] as JSONObject
+            val item = WeatherModel (
+                name,
+                day.getString("date"),
+                day.getJSONObject("day").getJSONObject("condition").getString("text"),
+                "",
+                day.getJSONObject("day").getString("maxtemp_c"),
+                day.getJSONObject("day").getString("mintemp_c"),
+                day.getJSONObject("day").getJSONObject("condition").getString("icon"),
+                day.getJSONArray("hour").toString()
+
+                    )
+            list.add(item)
+        }
+
+        return list
+
+    }
+
+    private fun parseCurrentData(mainObject: JSONObject, wetherItem: WeatherModel){
         val item = WeatherModel(
             mainObject.getJSONObject("location").getString("name"),
             mainObject.getJSONObject("current").getString("last_updated"),
             mainObject.getJSONObject("current").getJSONObject("condition").getString("text"),
             mainObject.getJSONObject("current").getString("temp_c"),
-            "",
-            "",
+            wetherItem.maxTemp,
+            wetherItem.minTemp,
             mainObject.getJSONObject("current").getJSONObject("condition").getString("icon"),
-            ""
+            wetherItem.hours
 
 
         )
-        Log.d("MyLog", "City: ${item.city}")
-        Log.d("MyLog", "Condition: ${item.condition}")
-        Log.d("MyLog", "Time: ${item.time}")
-        Log.d("MyLog", "Temp: ${item.currentTemp}")
-        Log.d("MyLog", "Image: ${item.imageUrl}")
+        Log.d("MyLog", "City: ${item.maxTemp}")
+        Log.d("MyLog", "Condition: ${item.minTemp}")
+        Log.d("MyLog", "Condition: ${item.hours}")
+
 
     }
 
